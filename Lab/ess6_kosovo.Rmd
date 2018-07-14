@@ -1,0 +1,165 @@
+---
+title: "A Populist Crisis? Lab Session. Analysing data from Kosovo, European Social Survey (2013)"
+author: "PISU Course 1 Participants"
+date: \today
+output: 
+ pdf_document:
+    keep_tex: TRUE
+geometry: margin = 1.2in
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, results = "asis", include = FALSE)
+
+pacman::p_load(
+  tidyverse, 
+  essurvey, 
+  sjmisc, 
+  haven,
+  knitr)
+```
+
+# Kosovo in the European Social Survey (Round 6)
+
+We have downloaded round 6 of the ESS data that is the only round that includes data on Kosovo. Respondents were interviewed in February and March 2013. 
+
+
+```{r data-import, echo=FALSE}
+
+# fantastic work by some data scientists, who wrote a package in R that downloads the ESS data automatically. 
+
+# library(essurvey)
+#  show_countries()
+#  set_email("your.ess.registred.email.adress@email.com")
+# # 
+ 
+# ess_kosovo = import_country("Kosovo", 6) %>% recode_missings() 
+ 
+# write.csv(ess_kosovo, file="kosovo_ess.csv", fileEncoding = "UTF8", row.names = FALSE)
+# write_dta(ess_kosovo, "kosovo_ess.dta")
+
+
+
+# As you are not yet registred with ESS and to start right away with the lab, I have downloaded the data already for you 
+
+ess_kosovo = read_dta("kosovo_ess.dta")
+
+#head(ess_kosovo)
+
+
+```
+
+
+<!-- We first explore how many respondents are included in the Kosovar 2013 dataset for each of the region. -->
+
+```{r explore-data, include=TRUE}
+# how many countries are included in our dataset? 
+
+kable(ess_kosovo %>% 
+        group_by(region) %>% 
+        summarise(observations= n()), 
+      caption = "Number of respondents per region", 
+      col.names = c("Region", "Observations"))
+```
+
+
+```{r kosovo_vv_regions, include=FALSE}
+
+# who feels close to VV? 
+
+#table(ess_kosovo$prtclxk) # vv is number 3
+
+ess_kosovo$vv = if_else(ess_kosovo$prtclxk==3, 1, 0)
+
+kable(ess_kosovo  %>%
+      group_by(region) %>% 
+      select(region, vv) %>% 
+      summarise_all(funs(mean), na.rm = TRUE),
+      caption = "Share of respondents feeling close to VV across regions", 
+      digits=2, 
+      col.names = c("Region", "Share of respondents feeling close to VV (2013)"))
+
+``` 
+# Socio-Economic Characteristics of VV Supporters in 2013
+
+```{r kosovo_vv_socioeconomics, include=TRUE}
+
+# who feels close to VV? 
+
+# find_var(ess_kosovo, pattern="age")
+# find_var(ess_kosovo, pattern="education")
+# table(ess_kosovo$edulvlb) # highest level of education
+
+
+ess_kosovo$female = if_else(ess_kosovo$gndr==2, 1, 0)
+
+ess_kosovo$higheducation = if_else(ess_kosovo$edulvlb> 323, 1, 0)
+
+
+kable(ess_kosovo  %>%
+      group_by(vv) %>% 
+      select(agea, female, higheducation, pdwrk, vv) %>% 
+      summarise_all(funs(mean), na.rm = TRUE),
+      caption = "Average socio-economic characteristics of VV partisans", 
+      digits=2, 
+      col.names = c("VV", "Age", "Female", "Higher Education", "Job"))
+
+``` 
+
+# Political Attitudes of VV Supporters in 2013 
+
+
+```{r kosovo_vv_polattitudes, include=TRUE}
+
+# who feels close to VV? 
+
+# find_var(ess_kosovo, pattern="trust")
+# table(ess_kosovo$trstprl)
+# table(ess_kosovo$trstprt)
+# 
+
+
+kable(ess_kosovo  %>%
+      group_by(vv) %>% 
+      select(trstprl, trstprt, trstep, vv) %>% 
+      summarise_all(funs(mean), na.rm = TRUE),
+      caption = "Avgerage level of trust in political institutions (0 - 10 scale)", 
+      digits=2, 
+      col.names = c("VV", "Trust in Parliament", "Trust in Parties", "Trust in EP"))
+
+
+#now let us do the same for political interest, satisfaction with democracy in Kosovo, overall perceived level of democracy in Kosovo and whether or not individuals believe that parties in the country offer clear alternatives to each other
+	
+
+#find_var(ess_kosovo, pattern="interest")
+#table(ess_kosovo$polintr)
+
+	
+# # satisfaction with way democracy works in the country	
+# find_var(ess_kosovo, pattern="satis")
+# table(ess_kosovo$stfdem)
+# 
+# # overall perceived level of democracy
+# find_var(ess_kosovo, pattern="democracy")
+# table(ess_kosovo$dmcntov)
+# 
+# # political parties in country offer clear alternatives to each other
+# find_var(ess_kosovo, pattern="alternative")	
+# table(ess_kosovo$dfprtalc)
+# 
+# 
+# kable(ess_kosovo  %>%
+#       group_by(vv) %>% 
+#       select(polintr, stfdem, dmcntov, dfprtalc, vv) %>% 
+#       summarise_all(funs(mean), na.rm = TRUE),
+#       caption = "Avg. political interest of VV partisans", 
+#       digits=2)
+
+# find_var(ess_kosovo, pattern="year")
+# 
+# table(ess_kosovo$supqmm)
+# table(ess_kosovo$inwyye)
+
+``` 
+
+

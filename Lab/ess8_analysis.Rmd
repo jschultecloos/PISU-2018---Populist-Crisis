@@ -1,0 +1,281 @@
+---
+title: "A Populist Crisis? Lab Session. Analysing data from the European Social Survey"
+author: "Julia Schulte-Cloos"
+date: \today
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, results = "asis", include = FALSE)
+
+pacman::p_load(
+  tidyverse,
+  essurvey, 
+  sjmisc, 
+  haven,
+  knitr)
+
+```
+
+# The European Social Survey 
+
+We have downloaded the latest round of the ESS data, round 8 (released on 31/10/2017). We will first explore the data. The data comes only in SPSS format or STATA format. Unfortunately, both statistical softwares are not open source. Fortunately, you can use R to import the data even without being in posession of a licence for those two software packages. 
+
+
+```{r data-import, echo=FALSE}
+
+# fantastic work by some data scientists, who wrote a package in R that downloads the ESS data automatically. 
+
+# library(essurvey)
+# show_countries()
+# set_email("your.ess.registred.email.adress@email.com")
+# 
+# eight_round =
+#   import_rounds(8) %>%
+#   recode_missings()
+# 
+# write.csv(eight_round, file="ess8.csv", fileEncoding = "UTF8")
+
+
+
+# As you are not yet registred with ESS and to start right away with the lab, I have downloaded the data already for you in Stata format (.dta) from the website
+
+ess_data <- read_dta("ESS8e02.dta")
+
+ess_data = recode_missings(ess_data)
+
+
+```
+
+```{r find_variables}
+
+# how to navigate in a large dataset with 536 observations? 
+find_var(ess_data, pattern="country")
+find_var(ess_data, pattern="gender") 
+find_var(ess_data, pattern="immigrant")
+
+
+```
+
+We first explore how many respondents are included in the dataset for each of the countries. If we want to compare across countries, we have to apply weights to the data. Read more about the weights in the ESS [here](http://www.europeansocialsurvey.org/methodology/ess_methodology/data_processing_archiving/weighting.html). 
+
+
+```{r explore-data, include=TRUE}
+# how many countries are included in our dataset? 
+kable(ess_data %>% 
+        group_by(cntry) %>% 
+        summarise(observations= n()), 
+      caption = "Number of observations per country")
+```
+
+# Cross-Country Analysis 
+
+```{r cross_country_N_immigration_worse, include=TRUE}
+
+# find_var(ess_data, pattern="immigrant")
+# table(ess_data$imwbcnt)
+
+
+kable(ess_data %>% 
+        dplyr::filter(imwbcnt==0) %>% 
+        group_by(cntry) %>% 
+        summarise(N_immigrationworse = n()), 
+      caption = "N of respondents thinking immigrants make country worse place to live")
+
+
+
+```
+
+Next, we can look at the share of people who believe that immigration is making the country a worse place to live. We first create an "indicator variable", that takes the value 1 if the respondent thinks immigration makes the country a totally worse place to live (value 0), and takes the value 0 if the respondent does not hold this extreme negative position. Variables that only take either the value 0 or the value 1 are also called binary variables, or dummy variables. 
+
+```{r cross_country_analysis_immigration_better, include=TRUE}
+
+# we first create an "indicator variable", that takes the value 1 if the respondent thinks immigration makes the country a totally worse place to live (value 0), and takes the value 0 if the respondent does not hold this extreme negative position. 
+
+
+# this is a so-called "if_else" condition. 
+ess_data$immigrationworse = if_else(ess_data$imwbcnt==0, 1, 0)
+
+
+kable(ess_data  %>%
+      group_by(cntry) %>% filter(!is.na(immigrationworse)) %>% 
+      summarise(Share_immigrationworse = mean(immigrationworse)),
+      caption = "Share of respondents thinking immigrants make country an absolutely worse place to live", 
+      digits=2)
+
+
+
+# we can also look at the share of respondents thinking that immigration make country a completely better place to live to contrast it
+
+# we again create an "indicator variable", that takes the value 1 if the respondent thinks immigration makes the country a totally better place to live (value 10 on the variable imwbcnt), and takes the value 0 if the respondent does not hold this extreme positive position. 
+
+
+ess_data$immigrationbetter = if_else(ess_data$imwbcnt==10, 1, 0)
+
+
+kable(ess_data  %>%
+      group_by(cntry) %>% filter(!is.na(immigrationbetter)) %>% 
+      summarise(Share_immigrationbetter = mean(immigrationbetter)),
+      caption = "Share of respondents thinking immigrants make country an absolutely better place to live", 
+      digits=2)
+
+
+
+
+```
+
+Finally, we can also look at the average opinion of respondents on whether or not immigration makes their country a better place to live. The outcome variable is measured on a 0 to 10 scale, which we need to know if we want to interpret the different country-specific values. 
+
+```{r immigration_worse_place_average, include=TRUE}
+
+# finally, we can also look at the average opinion of respondents on whether or not immigration makes their country a better place to live
+
+kable(ess_data  %>%
+      group_by(cntry) %>% filter(!is.na(imwbcnt)) %>% 
+      summarise(Avg_Immigrationworse = mean(imwbcnt)),
+      caption = "Avg. attitude whether immigration makes country a better / worse place to live (0-10 scale)", 
+      digits=2)
+
+
+```
+
+Instead of producing endlessly many tables that include only the respective mean for **one variable at a time**, we might consider to produce a table that includes all our values next to each other. This way, we can compare how high the share of people is that think immigration makes their country a completely worse place to live, a completely better place to live and the respective average value. 
+
+
+```{r immigration_extreme_average, include=TRUE}
+
+kable(ess_data  %>%
+      group_by(cntry) %>% filter(!is.na(immigrationbetter) & !is.na(immigrationworse) & !is.na(imwbcnt)) %>% 
+      select(cntry, immigrationbetter, immigrationworse, imwbcnt) %>% 
+      summarise_all(funs(mean), na.rm = TRUE),
+      caption = "Share of respondents thinking immigrants make country better place to live", 
+      digits=2, 
+      col.names = c("Country", "Share Immigration Country Much Better", "Share Immigration Country Much Worse", "Mean (0-10 Scale)"))
+
+``` 
+
+What we have been doing thus far substantively speaking, is that we looked at something that we might want to call the "polarization" of voters' attitude on the issue of immigration. We have considered the share of people who are convinced that immigration makes their country a **completely** worse place to live in, on the one hand, and we have considered the share of people who think that immigration makes their country a **completely** better place to live in. We have then contrasted these two values with the average opinion towards the issue within a country (measured on a 0-10 scale). 
+
+
+# Country Analysis: Italy
+
+Let us next look at one country and explore the characteristics of voters that are in favour of immigration or oppose it. We will focus on Italy, the country that had the highest share of respondents that believe that immigration makes their country a completely worse place to live.  
+
+Let us first create an indicator variable that measures "immigration sceptic" attitudes more generally, going beyond the extreme values of 10 and 0 that we used before. We will split the index in the middle. An immigration sceptic is someone who scores from 0 to 4 on his attitude on whether immigration is good for Italy and someone who is located at the upper end of the scale is not considered an anti-immigrant person.  
+
+
+```{r italy_antiimmigrant, include=TRUE}
+
+# as we will do some more analyses only considering Italy, it may be useful to create a subset of the data that only contains Italy. 
+
+italy_data = ess_data %>% filter(cntry=="IT")
+
+
+italy_data$antiimmigration = if_else(italy_data$imwbcnt<5, 1, 0)
+
+
+kable(italy_data %>% 
+      filter(!is.na(antiimmigration)) %>% 
+      summarise(antiimmigration_share = mean(antiimmigration)))
+
+
+
+```
+
+## Anti-Immigrant Attitudes and Socio-Demographic Characteristics
+
+```{r italy_sociodemograpics}
+
+# let us first find some variables that could be interesting in terms of socio-economic characteristics
+
+find_var(italy_data, pattern="age")
+find_var(italy_data, pattern="paid work")
+find_var(italy_data, pattern="vote")
+
+table(italy_data$agea)
+table(italy_data$pdwrk)
+
+find_var(italy_data, pattern="region")
+
+# create North-South variable, see: https://en.wikipedia.org/wiki/NUTS_statistical_regions_of_Italy
+
+italy_data$south = if_else((italy_data$region=="ITF1" | italy_data$region=="ITF2"| 
+                             italy_data$region=="ITF3" | italy_data$region=="ITF4"| 
+                             italy_data$region=="ITF5" |  italy_data$region=="ITG1"), 1, 0)
+
+table(italy_data$south)
+
+```
+
+```{r italy_antiimmigration_sociodemographics, include=TRUE}
+kable(italy_data  %>%
+        group_by(south, antiimmigration) %>% 
+        filter(!is.na(antiimmigration)) %>% 
+      select(agea, pdwrk, south, antiimmigration) %>% 
+      summarise_all(funs(mean), na.rm = TRUE),
+      caption = "Socio-demographic characteristics of immigration-sceptics in Italy", 
+      digits=2,
+      col.names = c("South", "Anti-Immigration 0/1", "Age", "Job 0/1"))
+
+``` 
+
+
+## Anti-Immigrant Attitudes and Political Behaviour
+
+Finally, we would also like to know how the anti-immgrant attitudes among Italian voters relate to their voting behaviour, their willigness to stay in the EU, and their previous electoral participation. Therefore, we will focus on **eligible voters**. 
+```{r italy_eligible}
+find_var(italy_data, pattern="vote")
+
+
+# we subset the data to include only those who are 18 and were eligible to vote during the last election
+italy_eligible_data = italy_data %>% filter(agea>=18 & vote!=3)
+
+find_var(italy_eligible_data, pattern="Italy") # party voted for last national election: prtvtbit. But this was election 2013,  
+
+table(italy_eligible_data$prtvtbit) # Movimento 5stelle: 4; Lega Nord: 9
+
+#let's rather take the proximity to a certain party.
+table(italy_eligible_data$prtclcit) # Movimento 5stelle: 1, Lega Nord: 3
+
+
+italy_eligible_data$lega = if_else(italy_eligible_data$prtclcit==3, 1, 0)
+italy_eligible_data$movimento = if_else(italy_eligible_data$prtclcit==1, 1, 0)
+
+# vote ==2 means that respondent did not vote
+italy_eligible_data$vote = if_else(italy_eligible_data$vote==1, 1, 0)
+
+table(italy_eligible_data$vote)
+
+
+# finally, let's consider whether a respondent would vote to leave the EU 
+table(italy_eligible_data$vteurmmb)
+# 2 means voter would vote for leaving the EU
+
+italy_eligible_data$leaveEU = if_else(italy_eligible_data$vteurmmb==2, 1, 0)
+table(italy_eligible_data$leaveEU)
+
+
+```
+
+
+
+
+
+```{r italy_antiimmigration_polbehaviour, include=TRUE}
+
+kable(italy_eligible_data  %>%
+        group_by(south, antiimmigration) %>% 
+        filter(!is.na(antiimmigration)) %>% 
+      select(agea, pdwrk, vote, lega, movimento, leaveEU, south, antiimmigration) %>% 
+      summarise_all(funs(mean), na.rm = TRUE),
+      caption = "Socio-demographic characteristics and political attitudes among anti- and pro-immigration respondents in Italy", 
+      digits=2,
+      col.names = c("South", "Anti-Immigration 0/1", "Age", "Job (0/1)", "Voted", "Close to Lega", "Close to M5S", "Vote Leave EU"))
+
+``` 
+
+
+
+These numbers are **basic descriptive** statistics. As we are working with observational data and cannot be confident to make claims about **causality**, these statistics give us, however, already a very good understanding of differences in socio-demographic characteristics and political attitudes among immigration sceptics and non-immigration sceptics in Italy. 
+
+
