@@ -49,7 +49,7 @@ ess_data = recode_missings(ess_data)
 
 ```{r find_variables}
 
-# how to navigate in a large dataset with 536 observations? 
+# how to navigate in a large dataset with 536 columns, i.e. different variables? 
 find_var(ess_data, pattern="country")
 find_var(ess_data, pattern="gender") 
 find_var(ess_data, pattern="immigrant")
